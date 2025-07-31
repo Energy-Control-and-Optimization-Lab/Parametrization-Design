@@ -4,135 +4,137 @@ import os
 import sys
 import matplotlib.pyplot as plt
 
-# Agregar la carpeta EcoFunctions al path para permitir importaciones internas
+# Add EcoFunctions to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'EcoFunctions'))
 
 from EcoFunctions.Eco_StlRev import generate_revolution_solid_stl
 from EcoFunctions.Eco_Cap2B import analyze_two_body_hydrodynamics
 
-# CONFIGURACIÓN PRINCIPAL
-# ======================
-# Nombre de la carpeta principal donde se guardarán todos los resultados
-FOLDER_NAME = "batch"  # Modificar aquí para cambiar el nombre
+# MAIN CONFIGURATION
+# ==================
+FOLDER_NAME = "batch"  # Main results folder name
 
-# Configuración de BEMIO (post-procesamiento MATLAB)
-RUN_BEMIO = False  # Cambiar a True para ejecutar BEMIO después del análisis BEM
-BEMIO_SCRIPT_PATH = None  # Ruta a script bemio.m personalizado (None = usa script interno)
+# BEMIO configuration (MATLAB post-processing)
+RUN_BEMIO = False  # Set True to run BEMIO after BEM analysis
+BEMIO_SCRIPT_PATH = None  # Custom bemio.m script path (None = use internal)
 
-# Rangos de variación
-R_values = [3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5]  # Lista completa
-D_values = [-1.2, -1.4, -1.6, -1.8, -2.0, -2.2, -2.4, -2.6, -2.8, -3.0]  # Lista completa
+# Parameter ranges
+R_values = [3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5]  # Complete list
+D_values = [-1.0, -1.4, -1.8, -2.2, -2.6, -3.0]  # Complete list
 
-# Configuración del análisis hidrodinámico
-frequencies = np.linspace(0.25, 2.0, 50)  # Reducido a 10 frecuencias para diagnóstico
+# For testing, use reduced configurations:
+R_values = [3.5]  # Single geometry for testing
+D_values = [-1.0]  # Single geometry for testing
 
-# Verificar versión de Eco_Cap2B
-print(f"🔍 Verificando versión de Eco_Cap2B...")
+# Hydrodynamic analysis configuration
+frequencies = np.linspace(0.1, 2.0, 10)  # Reduced to 10 frequencies for testing
+
+# Verify Eco_Cap2B version
+print("Verifying Eco_Cap2B version...")
 import inspect
 lines = inspect.getsource(analyze_two_body_hydrodynamics)
-if "Guardando coeficientes hidrodinámicos" in lines:
-    print("✅ Versión actualizada detectada - HydCoeff debería guardarse")
+if "Save hydrodynamic coefficients" in lines:
+    print("✅ Updated version detected - HydCoeff files will be saved")
 else:
-    print("❌ Versión antigua detectada - NECESITAS REEMPLAZAR Eco_Cap2B.py")
-    print("   El archivo HydCoeff NO se guardará hasta que actualices el código")
+    print("❌ Old version detected - NEED TO REPLACE Eco_Cap2B.py")
+    print("   HydCoeff files will NOT be saved until code is updated")
 
-# Crear carpeta principal del batch si no existe
+# Create main batch folder
 os.makedirs(FOLDER_NAME, exist_ok=True)
-print(f"Carpeta principal del batch: {FOLDER_NAME}")
+print(f"Main batch folder: {FOLDER_NAME}")
 
-# Iterar sobre todas las combinaciones de R y D
+# Iterate over all R and D combinations
 for R in R_values:
     for D in D_values:
-        # Crear nombre de carpeta de manera más simple
+        # Create folder name
         R_str = str(int(round(float(R) * 10)))
         D_str = str(int(round(abs(float(D)) * 10)))
         folder_name = f"Geometry_R{R_str}_D{D_str}"
         folder_path = os.path.join(FOLDER_NAME, folder_name)
         
-        print(f"\n--- Procesando R={R}, D={D} -> {folder_path} ---")
+        print(f"\n--- Processing R={R}, D={D} -> {folder_path} ---")
         
-        # Eliminar carpeta si existe
+        # Remove existing folder
         if os.path.exists(folder_path):
             shutil.rmtree(folder_path)
-            print(f"Carpeta {folder_path} preexistente eliminada")
+            print(f"Existing folder {folder_path} removed")
         
-        # Copiar carpeta Default
+        # Copy Default folder
         if os.path.exists("Default"):
             shutil.copytree("Default", folder_path)
-            print(f"Carpeta Default copiada como {folder_path}")
+            print(f"Default folder copied as {folder_path}")
         else:
-            print("No se encontró la carpeta Default")
+            print("Default folder not found")
             continue
         
-        # Definir puntos P con los valores actuales de R y D
+        # Define points P with current R and D values
         P = np.array([
             [3, 0, D],   # P1
             [R, 0, D],   # P2
-            [10, 0, -1],  # P3
-            [10, 0, 3],   # P4
-            [3, 0, 3]     # P5
+            [10, 0, -1], # P3
+            [10, 0, 3],  # P4
+            [3, 0, 3]    # P5
         ])
         
-        # Crear carpeta geometry si no existe
+        # Create geometry folder
         geometry_path = os.path.join(folder_path, "geometry")
         os.makedirs(geometry_path, exist_ok=True)
         
-        # Eliminar archivo float.stl si ya existe
+        # Remove existing float.stl
         float_stl_path = os.path.join(geometry_path, "float.stl")
         if os.path.exists(float_stl_path):
             try:
                 os.remove(float_stl_path)
-                print(f"Archivo {float_stl_path} eliminado")
+                print(f"File {float_stl_path} removed")
             except PermissionError:
-                print(f"No se pudo eliminar {float_stl_path} - archivo en uso")
+                print(f"Could not remove {float_stl_path} - file in use")
         
-        # Cambiar directorio temporalmente para guardar el STL
+        # Change directory temporarily to save STL
         current_dir = os.getcwd()
         os.chdir(geometry_path)
         
         try:
-            # Generar el sólido de revolución
+            # Generate revolution solid
             result = generate_revolution_solid_stl(
                 points=P,
                 filename="float.stl",
                 num_segments=36,
-                visualize=False,  # No mostrar gráficos durante procesamiento masivo
-                save_plot_path=os.getcwd()  # Guardar el gráfico en la carpeta geometry actual
+                visualize=False,  # No plots during batch processing
+                save_plot_path=os.getcwd()  # Save plot in current geometry folder
             )
             
-            print(f"Archivo STL generado: {result['filename']}")
-            print(f"Vértices: {result['num_vertices']}")
-            print(f"Triángulos: {result['num_triangles']}")
+            print(f"STL file generated: {result['filename']}")
+            print(f"Vertices: {result['num_vertices']}")
+            print(f"Triangles: {result['num_triangles']}")
             
         except Exception as e:
-            print(f"Error generando STL: {e}")
-            # Restaurar directorio antes de continuar
+            print(f"Error generating STL: {e}")
             os.chdir(current_dir)
             continue
         
-        # Volver al directorio original
+        # Return to original directory
         os.chdir(current_dir)
         
-        # Ejecutar análisis hidrodinámico usando la función importada
+        # Run hydrodynamic analysis
         try:
-            print("Iniciando análisis hidrodinámico...")
+            print("Starting hydrodynamic analysis...")
             
-            # Definir las rutas de los meshes
+            # Define mesh paths
             mesh1_path = os.path.join(folder_path, "geometry", "float.stl")
             mesh2_path = os.path.join(folder_path, "geometry", "plate.stl")
             
-            # Verificar que ambos archivos existen
+            # Verify both files exist
             if not os.path.exists(mesh1_path):
-                print(f"Error: No se encontró {mesh1_path}")
+                print(f"Error: {mesh1_path} not found")
                 continue
             if not os.path.exists(mesh2_path):
-                print(f"Error: No se encontró {mesh2_path}")
+                print(f"Error: {mesh2_path} not found")
                 continue
             
-            # Directorio de salida para datos hidrodinámicos
+            # Output directory for hydrodynamic data
             hydro_output_dir = os.path.join(folder_path, "hydroData")
             
-            # Ejecutar análisis hidrodinámico
+            # Run hydrodynamic analysis
             results = analyze_two_body_hydrodynamics(
                 mesh1_path=mesh1_path,
                 mesh2_path=mesh2_path,
@@ -145,59 +147,59 @@ for R in R_values:
                 plot_xlim=[-20, 20],
                 plot_ylim=[-35, 15],
                 save_plots=True,
-                show_plots=False,  # No mostrar gráficos durante el procesamiento masivo
-                logging_level="INFO",  # Cambiado de WARNING a INFO para más información
-                run_bemio=RUN_BEMIO,  # Ejecutar BEMIO si está habilitado
-                bemio_script_path=BEMIO_SCRIPT_PATH  # Script personalizado (opcional)
+                show_plots=False,  # No plots during batch processing
+                logging_level="INFO",
+                run_bemio=RUN_BEMIO,
+                bemio_script_path=BEMIO_SCRIPT_PATH
             )
             
-            # Mostrar resultados clave
+            # Show key results
             RAO = results['RAO']
             relative_heave = results['relative_heave_RAO']
             
-            print(f"Análisis completado para {len(frequencies)} frecuencias")
-            print(f"RAO máximo en heave del Float: {np.max(RAO[2, :]):.3f}")
-            print(f"RAO máximo en heave del Plate: {np.max(RAO[8, :]):.3f}")
-            print(f"RAO máximo relativo: {np.max(relative_heave):.3f}")
+            print(f"Analysis completed for {len(frequencies)} frequencies")
+            print(f"Max Float heave RAO: {np.max(RAO[2, :]):.3f}")
+            print(f"Max Plate heave RAO: {np.max(RAO[8, :]):.3f}")
+            print(f"Max relative RAO: {np.max(relative_heave):.3f}")
             
-            # Verificar archivos HydCoeff después del análisis
+            # Verify HydCoeff files after analysis
             hydro_files = ['HydCoeff.npz', 'HydCoeff.pkl', 'HydCoeff.mat']
-            print(f"\n🔍 Verificando archivos HydCoeff en {hydro_output_dir}:")
-            archivos_encontrados = []
-            for archivo in hydro_files:
-                file_path = os.path.join(hydro_output_dir, archivo)
+            print(f"\nVerifying HydCoeff files in {hydro_output_dir}:")
+            files_found = []
+            for file in hydro_files:
+                file_path = os.path.join(hydro_output_dir, file)
                 if os.path.exists(file_path):
                     file_size = os.path.getsize(file_path)
-                    print(f"✅ {archivo}: {file_size:,} bytes")
-                    archivos_encontrados.append(archivo)
+                    print(f"✅ {file}: {file_size:,} bytes")
+                    files_found.append(file)
                 else:
-                    print(f"❌ {archivo}: NO ENCONTRADO")
+                    print(f"❌ {file}: NOT FOUND")
             
-            if archivos_encontrados:
-                print(f"✅ {len(archivos_encontrados)} archivos HydCoeff creados exitosamente")
+            if files_found:
+                print(f"✅ {len(files_found)} HydCoeff files created successfully")
             else:
-                print(f"❌ NINGÚN archivo HydCoeff fue creado")
-                print(f"   Verificar que Eco_Cap2B.py está actualizado con la versión corregida")
+                print(f"❌ NO HydCoeff files were created")
+                print(f"   Verify that Eco_Cap2B.py is updated with corrected version")
             
         except Exception as e:
-            print(f"❌ ERROR CRÍTICO en análisis hidrodinámico para {folder_path}")
-            print(f"   Tipo de error: {type(e).__name__}")
-            print(f"   Mensaje: {str(e)}")
-            print(f"   Continuando con la siguiente iteración...")
+            print(f"❌ CRITICAL ERROR in hydrodynamic analysis for {folder_path}")
+            print(f"   Error type: {type(e).__name__}")
+            print(f"   Message: {str(e)}")
+            print(f"   Continuing with next iteration...")
             continue
 
-print("\n--- Proceso completado ---")
-print(f"Total de combinaciones procesadas: {len(R_values)} × {len(D_values)} = {len(R_values) * len(D_values)}")
-print(f"\nTodos los resultados se guardaron en la carpeta: {FOLDER_NAME}/")
-print(f"Estructura de archivos en cada subcarpeta {FOLDER_NAME}/Geometry_R*_D*:")
-print("- geometry/float.stl: Geometría generada")
-print("- geometry/profile_plot.png: Perfil del sólido de revolución") 
-print("- hydroData/rm3.nc: Datos hidrodinámicos en formato NetCDF")
-print("- hydroData/HydCoeff.npz: Coeficientes hidrodinámicos (NumPy)")
-print("- hydroData/HydCoeff.pkl: Coeficientes hidrodinámicos (Pickle)")
-print("- hydroData/HydCoeff.mat: Coeficientes hidrodinámicos (MATLAB)")
-print("- hydroData/RAO_heave_comparison.png: Gráfica del RAO")
-print("- hydroData/geometry_lateral_view.png: Vista lateral de la geometría")
+print("\n--- Process completed ---")
+print(f"Total combinations processed: {len(R_values)} × {len(D_values)} = {len(R_values) * len(D_values)}")
+print(f"\nAll results saved in folder: {FOLDER_NAME}/")
+print(f"File structure in each subfolder {FOLDER_NAME}/Geometry_R*_D*:")
+print("- geometry/float.stl: Generated geometry")
+print("- geometry/profile_plot.png: Revolution solid profile") 
+print("- hydroData/rm3.nc: Hydrodynamic data in NetCDF format")
+print("- hydroData/HydCoeff.npz: Hydrodynamic coefficients (NumPy)")
+print("- hydroData/HydCoeff.pkl: Hydrodynamic coefficients (Pickle)")
+print("- hydroData/HydCoeff.mat: Hydrodynamic coefficients (MATLAB)")
+print("- hydroData/RAO_heave_comparison.png: RAO comparison plot")
+print("- hydroData/geometry_lateral_view.png: Lateral geometry view")
 if RUN_BEMIO:
-    print("- hydroData/*.h5: Archivos BEMIO para WEC-Sim (si BEMIO está habilitado)")
-    print("- hydroData/*.png: Gráficas adicionales de BEMIO (si BEMIO está habilitado)")
+    print("- hydroData/*.h5: BEMIO files for WEC-Sim (if BEMIO enabled)")
+    print("- hydroData/*.png: Additional BEMIO plots (if BEMIO enabled)")
