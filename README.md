@@ -1,442 +1,489 @@
-# EcoFunctions - Hydrodynamic Analysis Tools with DOE
+# EcoFunctions
 
-**Version:** 2.1.0  
-**Author:** Pablo Antonio Matamala Carvajal  
-**Date:** January 2025
+**Parametric Hydrodynamic Analysis for Wave Energy Converters**
 
----
-
-## 📋 Overview
-
-**EcoFunctions** is a Python package for parametric hydrodynamic analysis of Wave Energy Converters (WECs) with integrated Design of Experiments (DOE) capabilities. The package provides tools for:
-
-- ✅ **Automated STL geometry generation** from parametric profiles
-- ✅ **Boundary Element Method (BEM)** hydrodynamic analysis using Capytaine
-- ✅ **Design of Experiments (DOE)** for systematic parametric studies
-- ✅ **Single and two-body** floating structure analysis
-- ✅ **Response Amplitude Operator (RAO)** calculations
-- ✅ **Multi-format data export** (NPZ, PKL, MAT, NetCDF)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/Energy-Control-and-Optimization-Lab/Parametrization-Design)
+[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
 ---
 
-## 🚀 Quick Start
+## Overview
 
-### Installation
+EcoFunctions is a Python package for parametric hydrodynamic analysis of Wave Energy Converters (WECs). It automates the process of geometry generation and Boundary Element Method (BEM) analysis using Capytaine to study floating body dynamics across multiple parameter combinations.
 
-1. **Clone or download** the repository
-2. **Install required packages:**
+### Key Features
+
+- **Parametric Geometry Generation**: Automatically creates STL files from 2D profiles with configurable mesh density
+- **Batch Processing**: Analyzes multiple geometric configurations systematically
+- **BEM Hydrodynamic Analysis**: Computes radiation, diffraction, and excitation forces using Capytaine
+- **Two-Body Interaction**: Calculates coupled dynamics between floating bodies
+- **Multi-Format Export**: Results saved in NPZ, PKL, MAT, and NetCDF formats
+- **Automated Visualization**: Generates plots for RAO, added mass, damping, and geometry
+
+---
+
+## Installation
+
+### Requirements
 
 ```bash
-pip install numpy matplotlib scipy pandas capytaine xarray netCDF4 h5netcdf
+numpy >= 1.20.0
+matplotlib >= 3.3.0
+scipy >= 1.7.0
+capytaine >= 2.0
+xarray >= 0.19.0
+netCDF4 >= 1.5.7
+h5netcdf >= 0.14.0
 ```
 
-3. **Verify installation:**
+### Setup
 
 ```bash
-python -c "import capytaine; print('Capytaine OK')"
-```
+# Clone repository
+git clone https://github.com/Energy-Control-and-Optimization-Lab/Parametrization-Design.git
+cd Parametrization-Design
 
-### Basic Usage
+# Install dependencies
+pip install numpy matplotlib scipy capytaine xarray netCDF4 h5netcdf
 
-```python
-from EcoFunctions import generate_revolution_solid_stl, analyze_two_body_hydrodynamics, generate_doe_vectors
-
-# Generate geometry
-P = [[3,0,-5], [10,0,-5], [10,0,2], [3,0,2]]
-result = generate_revolution_solid_stl(P, filename="float.stl")
-
-# Run hydrodynamic analysis
-frequencies = np.linspace(0.2, 1.8, 50)
-results = analyze_two_body_hydrodynamics(
-    mesh1_path="float.stl",
-    mesh2_path="spar.stl",
-    frequency_range=frequencies
-)
-
-# Generate DOE experiments
-wec_params = {'D1': [5,15], 'D2': [0,2], 'D3': [6,13]}
-doe_results = generate_doe_vectors(wec_params, method='Box-Behnken')
+# Verify Capytaine installation
+python -c "import capytaine; print('Capytaine installed successfully!')"
 ```
 
 ---
 
-## 📦 Package Structure
+## Project Structure
 
 ```
-EcoFunctions/
-├── __init__.py              # Package initialization
-├── Eco_StlRev.py           # STL geometry generation
-├── Eco_Cap1B.py            # Single-body hydrodynamic analysis
-├── Eco_Cap2B.py            # Two-body hydrodynamic analysis
-
-Main scripts/
-├── Main.py                  # Standard parametric analysis
-├── Main_DOE.py             # DOE-based parametric analysis
+Parametrization-Design/
+├── EcoFunctions/
+│   ├── __init__.py              # Package initialization
+│   ├── Eco_StlRev.py           # STL geometry generation
+│   ├── Eco_Cap2B.py            # Two-body hydrodynamics
+│   └── Eco_Cap1B.py            # Single-body hydrodynamics
+├── Main_ACC2026.py             # Main parametric analysis script
+├── Main_Convergence_floater.py # Mesh convergence study
+└── Default/
+    └── geometry/
+        └── plate_refined.GDF    # Reference plate geometry
 ```
 
 ---
 
-## 🔧 Core Modules
+## Usage
 
-### 1. Eco_StlRev.py - Geometry Generation
+### Main Parametric Analysis
 
-Generate revolution solids (STL format) from 2D profiles with adaptive mesh refinement.
+The `Main_ACC2026.py` script performs systematic parametric studies by varying geometric parameters and analyzing the hydrodynamic response.
 
-**Key Features:**
-- Parametric solid of revolution around Z-axis
-- Configurable circumferential and Z-axis subdivisions
-- **Adaptive subdivision** for short segments (automatic mesh refinement)
-- Profile visualization with original and subdivided points
+#### Parameter Configuration
 
-**Function:**
+The script defines a relationship between radius (R) and depth (D):
+
 ```python
-generate_revolution_solid_stl(
-    points,                    # List of [x, y, z] coordinates
-    filename="solid.stl",      # Output STL filename
-    num_segments=36,           # Circumferential segments
-    z_subdivisions=4,          # Z-axis subdivisions per segment
-    height_threshold=2.0,      # Height threshold for adaptive subdivision
-    min_subdivisions=2,        # Min subdivisions for short segments
-    visualize=False,           # Show profile plot
-    save_plot_path=None,       # Directory to save plot
-    plot_filename="profile.png" # Custom plot filename
-)
+R_values = np.array([6, 7, 8, 9, 10, 11, 12, 13])
+D_values = 273 / ((R_values**2) - 9)
+Dint_values = np.array([0, 0.5, 1])
 ```
 
-**Example:**
+Where:
+- **R**: Outer radius of the float [m]
+- **D**: Submersion depth calculated from R [m]
+- **Dint**: Interior depth offset [m]
+
+This generates **8 × 3 = 24 geometric configurations**.
+
+#### Float Geometry Definition
+
+For each combination of (R, D, Dint), a float geometry is defined by 4 profile points:
+
 ```python
-P_float = np.array([
-    [3, 0, -10],   # P1
-    [8, 0, -10],   # P2
-    [8, 0, 2],     # P3
-    [3, 0, 2]      # P4
+P = np.array([
+    [3, 0, -D-Dint],   # P1: Inner radius at bottom
+    [R, 0, -D],        # P2: Outer radius at bottom
+    [R, 0, 2],         # P3: Outer radius at top
+    [3, 0, 2],         # P4: Inner radius at top
 ])
-
-result = generate_revolution_solid_stl(
-    points=P_float,
-    filename="float.stl",
-    num_segments=60,
-    z_subdivisions=10
-)
 ```
+
+#### Mesh Generation Parameters
+
+```python
+NUM_SEGMENTS = 50        # Circumferential segments
+Z_SUBDIVISIONS = 8       # Z-axis subdivisions per segment
+```
+
+Higher values increase mesh density and computational cost but improve accuracy.
+
+#### Frequency Range
+
+```python
+frequencies = np.linspace(0.2, 1.8, 500)  # [rad/s]
+```
+
+Analyzes the system response across 500 frequency points from 0.2 to 1.8 rad/s.
 
 ---
 
-### 2. Eco_Cap2B.py - Two-Body Hydrodynamic Analysis
+## Running the Analysis
 
-Perform coupled two-body hydrodynamic analysis using Capytaine BEM solver.
+### Basic Execution
 
-**Key Features:**
-- Radiation and diffraction problem solving
-- Added mass and radiation damping calculation
-- Excitation forces (Froude-Krylov + diffraction)
-- RAO computation for all degrees of freedom
-- Relative motion analysis between bodies
-- Multi-format export (NPZ, PKL, MAT, NetCDF)
-
-**Function:**
-```python
-analyze_two_body_hydrodynamics(
-    mesh1_path,                # Path to first body STL
-    mesh2_path,                # Path to second body STL
-    frequency_range,           # Array of frequencies [rad/s]
-    mesh1_position=[0,0,0],    # First body position
-    mesh2_position=[0,0,0],    # Second body position
-    body_names=["Float","Spar"],
-    output_directory="hydroData",
-    save_plots=True,
-    show_plots=False
-)
+```bash
+python Main_ACC2026.py
 ```
 
-**Returns:**
-- Added mass matrices (A)
-- Radiation damping matrices (B)
-- Excitation forces (Fe)
-- RAO for all DOFs
-- Inertia and stiffness matrices
-- Complete dataset in NetCDF format
+### What Happens During Execution
 
----
+For each geometric configuration:
 
-### 3. Eco_Cap1B.py - Single-Body Hydrodynamic Analysis
+1. **Creates folder structure**: `batch_ACC2026/Geometry_R{R}_Dint{Dint}/`
+2. **Copies reference files** from `Default/` folder
+3. **Generates float geometry**: Creates `float.stl` with specified parameters
+4. **Runs hydrodynamic analysis**: Computes interaction between float and plate
+5. **Saves results**: Multiple formats in `hydroData/` subfolder
+6. **Generates plots**: RAO, damping, added mass, and geometry visualizations
 
-Similar to Eco_Cap2B but for single floating bodies (6 DOF).
-
-**Function:**
-```python
-analyze_single_body_hydrodynamics(
-    mesh_path,                 # Path to body STL
-    frequency_range,           # Array of frequencies [rad/s]
-    mesh_position=[0,0,0],
-    body_name="Body",
-    output_directory="hydroData"
-)
-```
-
-## 🎯 Main Scripts
-
-### Main.py - Standard Parametric Analysis
-
-Traditional nested loop approach for parametric studies.
-
-**Features:**
-- Manual parameter grid definition (R_values × Dint_values)
-- Generates float and spar geometries
-- Runs hydrodynamic analysis for each combination
-- Organized output folders
-
-**Use when:** You want simple grid-based parameter exploration
-
----
-
-
-## 📊 Typical Workflow
-
-### 1. Define WEC Design Parameters
-
-```python
-wec_parameters = {
-    'D1': [5, 15],      # Depth parameter
-    'D2': [0, 2],       # Offset parameter
-    'D3': [6, 13],      # Radius parameter
-    # ... up to D6
-}
-```
-
-### 2. Generate DOE Experiments
-
-```python
-doe_results = generate_doe_vectors(
-    wec_parameters, 
-    method='Box-Behnken',
-    n_center_points=6
-)
-```
-
-### 3. Run Parametric Analysis
-
-```python
-for experiment in doe_results['design_matrix']:
-    D1, D2, D3, D4, D5, D6 = experiment
-    
-    # Create geometry using DOE parameters
-    P_float = np.array([[3,0,-D1-D2], [D3,0,-D1], ...])
-    P_spar = np.array([[0,0,-D4], [D5,0,-D4], ...])
-    
-    # Generate STL files
-    generate_revolution_solid_stl(P_float, "float.stl")
-    generate_revolution_solid_stl(P_spar, "spar.stl")
-    
-    # Run hydrodynamic analysis
-    results = analyze_two_body_hydrodynamics(...)
-    
-    # Save results
-```
-
-### 4. Post-Processing
-
-- Collect all `experiment_summary.json` files
-- Build response surface model (e.g., Gaussian Process, Polynomial)
-- Perform optimization
-- Validate optimal design with full simulation
-
----
-
-## 📁 Output Structure
+### Output Structure
 
 ```
-batch_DOE_WEC/
-├── DOE_Exp_001/
+batch_ACC2026/
+├── Geometry_R6_Dint0/
 │   ├── geometry/
 │   │   ├── float.stl
-│   │   ├── spar.stl
-│   │   ├── float_profile_plot.png
-│   │   └── spar_profile_plot.png
-│   ├── hydroData/
-│   │   ├── HydCoeff.npz
-│   │   ├── HydCoeff.pkl
-│   │   ├── HydCoeff.mat
-│   │   ├── rm3.nc
-│   │   ├── RAO_heave_comparison.png
-│   │   ├── radiation_damping_coefficients.png
-│   │   ├── added_mass_coefficients.png
-│   │   └── geometry_lateral_view.png
-│   └── experiment_summary.json
-├── DOE_Exp_002/
+│   │   ├── plate_refined.GDF
+│   │   └── profile_plot_subdivided.png
+│   └── hydroData/
+│       ├── HydCoeff.npz           # NumPy compressed
+│       ├── HydCoeff.pkl           # Python pickle
+│       ├── HydCoeff.mat           # MATLAB format
+│       ├── rm3.nc                 # NetCDF dataset
+│       ├── RAO_heave_comparison.png
+│       ├── added_mass_coefficients.png
+│       ├── radiation_damping_coefficients.png
+│       └── geometry_lateral_view.png
+├── Geometry_R6_Dint5/
 │   └── ...
-...
-└── DOE_Exp_063/
+└── Geometry_R13_Dint10/
     └── ...
 ```
 
 ---
 
-## 🔬 Technical Details
+## EcoFunctions Modules
 
-### Hydrodynamic Coefficients
+### 1. Geometry Generation (`Eco_StlRev.py`)
 
-**Computed matrices:**
-- **A(ω)**: Added mass [kg, kg·m²]
+Generates solids of revolution from 2D profiles.
+
+```python
+from EcoFunctions import generate_revolution_solid_stl
+
+result = generate_revolution_solid_stl(
+    points=P,                      # Profile points [(x,y,z), ...]
+    filename="float.stl",          # Output filename
+    num_segments=50,               # Circumferential resolution
+    z_subdivisions=8,              # Z-axis density
+    visualize=False,               # Show plots
+    save_plot_path="./geometry"    # Save location
+)
+```
+
+**Key Features:**
+- Revolution around Z-axis
+- Configurable mesh density in both circumferential and Z directions
+- Automatic profile subdivision for smooth surfaces
+- Visualization of original vs subdivided profiles
+
+**Output:**
+```python
+{
+    'filename': 'float.stl',
+    'num_vertices': 3200,
+    'num_triangles': 6400,
+    'num_original_points': 4,
+    'num_profile_points': 32,
+    'subdivision_factor': 8
+}
+```
+
+### 2. Two-Body Hydrodynamics (`Eco_Cap2B.py`)
+
+Performs coupled hydrodynamic analysis between two floating bodies.
+
+```python
+from EcoFunctions import analyze_two_body_hydrodynamics
+
+results = analyze_two_body_hydrodynamics(
+    mesh1_path="geometry/float.stl",
+    mesh2_path="geometry/plate_refined.GDF",
+    frequency_range=frequencies,
+    mesh1_position=[0.0, 0.0, 0.0],
+    mesh2_position=[0.0, 0.0, 0.0],
+    body_names=["Float", "Plate"],
+    output_directory="hydroData",
+    nc_filename="rm3.nc",
+    save_plots=True,
+    show_plots=False
+)
+```
+
+**Computed Quantities:**
+
+- **A(ω)**: Added mass matrices [kg, kg·m²]
 - **B(ω)**: Radiation damping [kg/s, kg·m²/s]
-- **Fe(ω)**: Excitation force [N, N·m]
+- **Fe(ω)**: Excitation forces [N, N·m]
 - **M**: Inertia matrix [kg, kg·m²]
 - **C**: Hydrostatic stiffness [N/m, N·m/rad]
+- **RAO**: Response Amplitude Operators for all 12 DOFs
+- **Relative Heave**: Relative motion between bodies
 
-**Equation of motion:**
+**Equation of Motion:**
+
 ```
 [M + A(ω)] ẍ + B(ω) ẋ + C x = Fe(ω)
 ```
 
-**RAO Computation:**
+**RAO Calculation:**
+
 ```
 RAO(ω) = |Z(ω)⁻¹ Fe(ω)|
+
 where Z(ω) = -ω²[M + A(ω)] + iω B(ω) + C
 ```
 
----
-
-## ⚙️ Configuration Tips
-
-### Mesh Quality
-
-**Float geometry:**
+**Return Values:**
 ```python
-NUM_SEGMENTS_float = 60        # Good balance
-Z_SUBDIVISIONS_float = 10      # Adequate for most cases
+{
+    'dataset': xarray.Dataset,       # Complete Capytaine dataset
+    'RAO': np.ndarray,               # RAO magnitudes (12 × Nω)
+    'relative_heave_RAO': np.ndarray,# Relative heave RAO
+    'frequencies': np.ndarray,       # Frequency array
+    'added_mass': np.ndarray,        # A(ω) matrices
+    'radiation_damping': np.ndarray, # B(ω) matrices
+    'excitation_force': np.ndarray,  # Fe(ω) vectors
+    'inertia_matrix': np.ndarray,    # M matrix
+    'hydrostatic_stiffness': np.ndarray, # C matrix
+    'Npan1': int,                    # Panel count body 1
+    'Npan2': int                     # Panel count body 2
+}
 ```
 
-**Spar geometry:**
-```python
-NUM_SEGMENTS_spar = 70         # Finer mesh
-Z_SUBDIVISIONS_spar = 20       # With adaptive subdivision
-height_threshold = 2.0         # Segments < 2m use fewer subdivisions
-min_subdivisions = 3           # Minimum for short segments
-```
+### 3. Single-Body Hydrodynamics (`Eco_Cap1B.py`)
 
-### Frequency Range
+For analyzing individual floating bodies (6 DOF).
 
 ```python
-# Standard range for WEC analysis
-frequencies = np.linspace(0.2, 1.8, 500)  # [rad/s]
+from EcoFunctions import analyze_single_body_hydrodynamics
 
-# Quick testing
-frequencies = np.linspace(0.2, 1.8, 5)
+results = analyze_single_body_hydrodynamics(
+    mesh_path="geometry/float.stl",
+    frequency_range=frequencies,
+    mesh_position=[0.0, 0.0, 0.0],
+    body_name="Float",
+    output_directory="hydroData"
+)
 ```
-
-### DOE Configuration
-
-**Center points:**
-- **1 point**: Minimum (not recommended)
-- **3 points**: Standard minimum
-- **6 points**: ⭐ **Recommended** for robust error estimation
-- **9+ points**: Overkill for most cases
 
 ---
 
-## 📚 Dependencies
+## Mesh Convergence Study
 
-**Required packages:**
-```
-numpy >= 1.20.0
-matplotlib >= 3.3.0
-scipy >= 1.7.0
-pandas >= 1.3.0
-capytaine >= 2.0
-xarray >= 0.19.0
-netCDF4 >= 1.5.7  (or h5netcdf >= 0.14.0)
+Use `Main_Convergence_floater.py` to study mesh convergence:
+
+```python
+NUM_SEGMENTS = np.array([40, 50, 60, 70, 80])
+Z_SUBDIVISIONS = np.array([6, 8, 10, 12, 14])
 ```
 
-**Install all at once:**
+This script analyzes the same geometry with increasing mesh refinement to verify solution convergence.
+
+---
+
+## Configuration Guidelines
+
+### Mesh Density Recommendations
+
+**For quick testing:**
+```python
+NUM_SEGMENTS = 40
+Z_SUBDIVISIONS = 6
+frequencies = np.linspace(0.2, 1.8, 50)
+```
+
+**For production analysis:**
+```python
+NUM_SEGMENTS = 50-60
+Z_SUBDIVISIONS = 8-10
+frequencies = np.linspace(0.2, 1.8, 500)
+```
+
+**For high-accuracy studies:**
+```python
+NUM_SEGMENTS = 70-80
+Z_SUBDIVISIONS = 12-14
+frequencies = np.linspace(0.2, 1.8, 500)
+```
+
+### Frequency Range Selection
+
+- **Standard WEC analysis**: 0.2 - 1.8 rad/s (typical ocean wave conditions)
+- **Resolution**: 500 points recommended for smooth RAO curves
+- **Quick testing**: 50 points sufficient for initial validation
+
+---
+
+## Accessing Results
+
+### Loading NPZ Files
+
+```python
+import numpy as np
+
+data = np.load('hydroData/HydCoeff.npz')
+A = data['A']      # Added mass
+B = data['B']      # Radiation damping
+Fe = data['Fe']    # Excitation force
+M = data['M']      # Inertia matrix
+C = data['C']      # Hydrostatic stiffness
+w = data['w']      # Frequencies
+RAO = data['RAO']  # Response amplitudes
+```
+
+### Loading Pickle Files
+
+```python
+import pickle
+
+with open('hydroData/HydCoeff.pkl', 'rb') as f:
+    hydro_coeffs = pickle.load(f)
+
+A = hydro_coeffs['A']
+metadata = hydro_coeffs['metadata']
+```
+
+### Loading MATLAB Files
+
+```matlab
+load('hydroData/HydCoeff.mat')
+
+% Complex variables split into real/imaginary
+Fe = Fe_real + 1i*Fe_imag;
+RAO = RAO_real + 1i*RAO_imag;
+```
+
+---
+
+## Troubleshooting
+
+### Capytaine Installation Issues
+
+**Error**: Missing Fortran compiler
+
+**Solution (Linux)**:
 ```bash
-pip install numpy matplotlib scipy pandas capytaine xarray netCDF4 h5netcdf
-```
-
----
-
-## 🐛 Troubleshooting
-
-### Capytaine installation fails
-**Solution:** Install build tools first
-```bash
-# Windows: Install Visual Studio Build Tools
-# Linux:
 sudo apt-get install build-essential gfortran
 pip install capytaine
 ```
 
-### NetCDF4 not working
-**Solution:** Use h5netcdf as fallback (already implemented)
+**Solution (Windows)**:
+Install Visual Studio Build Tools with C++ support, then:
 ```bash
-pip install h5netcdf
+pip install capytaine
 ```
 
-### Memory issues with large meshes
-**Solution:** Reduce mesh density or frequency points
+### NetCDF Export Errors
+
+The code automatically falls back to h5netcdf if netCDF4 fails. Ensure at least one is installed:
+```bash
+pip install netCDF4 h5netcdf
+```
+
+### Memory Issues
+
+Reduce mesh density or frequency points:
 ```python
-NUM_SEGMENTS = 40  # Instead of 70
+NUM_SEGMENTS = 40          # Instead of 70
+Z_SUBDIVISIONS = 6         # Instead of 12
 frequencies = np.linspace(0.2, 1.8, 100)  # Instead of 500
 ```
 
----
+### Missing Default Folder
 
-## 📖 Examples
-
-See `Example_DOE_Usage.py` for comprehensive examples including:
-- Basic DOE generation
-- Integration with Main.py workflow
-- Comparison of different DOE methods
-- Complete WEC analysis example
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these guidelines:
-1. Document all functions with docstrings
-2. Include examples for new features
-3. Test with different parameter combinations
-4. Update README.md with new functionality
+Ensure the `Default/` folder exists with `plate_refined.GDF`:
+```
+Default/
+└── geometry/
+    └── plate_refined.GDF
+```
 
 ---
 
-## 📄 License
+## Theory Background
 
-[Add your license information here]
+### Hydrodynamic Coefficients
 
----
+The BEM solver computes frequency-dependent coefficients describing wave-structure interaction:
 
-## 📧 Contact
+- **Added Mass A(ω)**: Virtual mass effect from surrounding fluid
+- **Radiation Damping B(ω)**: Energy dissipation from radiated waves
+- **Excitation Force Fe(ω)**: Wave forces on the structure (Froude-Krylov + diffraction)
 
-**Author:** Pablo Antonio Matamala Carvajal  
-**Email:** [Add your email]  
-**Institution:** [Add your institution]
+### Degrees of Freedom
 
----
+**Single body**: 6 DOF (surge, sway, heave, roll, pitch, yaw)
 
-## 🔗 References
+**Two bodies**: 12 DOF (6 for each body)
 
-- **Capytaine Documentation:** https://capytaine.github.io/
-- **Box-Behnken Design:** Box, G. E. P., & Behnken, D. W. (1960). Some new three level designs for the study of quantitative variables. Technometrics, 2(4), 455-475.
-- **BEM Theory:** [Add relevant BEM references]
+### Response Amplitude Operator (RAO)
 
----
+The RAO quantifies the motion response per unit wave amplitude:
 
-## 📝 Version History
+```
+RAO(ω) = Motion amplitude / Wave amplitude
+```
 
-**v2.1.0 (January 2025)**
-- ✨ Added DOE capabilities (Eco_DOE.py)
-- ✨ Added adaptive mesh subdivision
-- ✨ Added Main_DOE.py for DOE-based analysis
-- 🐛 Improved NetCDF export compatibility
-- 📚 Enhanced documentation
-
-**v2.0.0 (July 2024)**
-- 🎉 Initial public release
-- ✨ Single and two-body hydrodynamic analysis
-- ✨ STL geometry generation
-- ✨ Multi-format data export
+Units: [m/m] for translations, [rad/m] for rotations
 
 ---
 
-**⭐ If this package helps your research, please consider citing it in your publications!**
+## Author & Contact
+
+**Author**: Pablo Antonio Matamala Carvajal  
+**Laboratory**: Energy Control and Optimization Lab  
+**Institution**: University of New Hampshire  
+**Email**: Pablo.MatamalaCarvajal@unh.edu
+
+---
+
+## References
+
+- **Capytaine Documentation**: [https://capytaine.github.io/](https://capytaine.github.io/)
+- **BEM Theory**: Boundary Element Methods for marine hydrodynamics
+- **Wave Energy**: Ocean wave energy conversion systems
+
+---
+
+## Citation
+
+If this package helps your research, please cite:
+
+```bibtex
+@software{ecofunctions2025,
+  author = {Matamala Carvajal, Pablo Antonio},
+  title = {EcoFunctions: Parametric Hydrodynamic Analysis for Wave Energy Converters},
+  year = {2025},
+  version = {2.0.0},
+  url = {https://github.com/Energy-Control-and-Optimization-Lab/Parametrization-Design}
+}
+```
+
+---
+
+## License
+
+[Add license information]
+
+---
+
+**Happy analyzing!**
