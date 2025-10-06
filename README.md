@@ -44,7 +44,7 @@ git clone https://github.com/Energy-Control-and-Optimization-Lab/Parametrization
 cd Parametrization-Design
 
 # Install dependencies
-pip install numpy matplotlib scipy capytaine xarray netCDF4 h5netcdf
+pip install numpy matplotlib scipy capytaine xarray netCDF4 h5netcdf vtk
 
 # Verify Capytaine installation
 python -c "import capytaine; print('Capytaine installed successfully!')"
