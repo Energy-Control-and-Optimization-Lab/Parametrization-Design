@@ -68,12 +68,10 @@ EcoFunctions/
 ├── Eco_StlRev.py           # STL geometry generation
 ├── Eco_Cap1B.py            # Single-body hydrodynamic analysis
 ├── Eco_Cap2B.py            # Two-body hydrodynamic analysis
-└── Eco_DOE.py              # Design of Experiments tools
 
 Main scripts/
 ├── Main.py                  # Standard parametric analysis
 ├── Main_DOE.py             # DOE-based parametric analysis
-└── Example_DOE_Usage.py    # DOE usage examples
 ```
 
 ---
@@ -176,63 +174,6 @@ analyze_single_body_hydrodynamics(
 )
 ```
 
----
-
-### 4. Eco_DOE.py - Design of Experiments
-
-Generate optimal experiment designs for parametric studies.
-
-**Key Features:**
-- Multiple DOE methods (Box-Behnken, CCD, Full-Factorial, LHS)
-- Automatic scaling to physical parameter ranges
-- Flexible parameter definition (list or dictionary)
-- Comprehensive metadata and design information
-
-**Function:**
-```python
-generate_doe_vectors(
-    parameter_ranges,          # Dict or list of parameter ranges
-    method='Box-Behnken',      # DOE method
-    n_center_points=None,      # Number of center points (auto-calculated)
-    seed=None,                 # Random seed for reproducibility
-    parameter_names=None       # Custom parameter names
-)
-```
-
-**Supported Methods:**
-- **Box-Behnken**: Efficient for 3+ parameters, good for response surfaces
-- **CCD (Central Composite)**: Classical design, includes axial points
-- **Full-Factorial**: Complete coverage (use for ≤4 parameters)
-- **LHS (Latin Hypercube)**: Space-filling for many parameters
-
-**Example:**
-```python
-# Define parameters
-wec_parameters = {
-    'D1': [5, 15],      # float_base_depth [m]
-    'D2': [0, 2],       # additional_offset [m]  
-    'D3': [6, 13],      # float_radius [m]
-    'D4': [25, 35],     # spar_depth [m]
-    'D5': [10, 20],     # spar_top_radius [m]
-    'D6': [5, 12]       # spar_top_height [m]
-}
-
-# Generate Box-Behnken design
-doe_results = generate_doe_vectors(
-    parameter_ranges=wec_parameters,
-    method='Box-Behnken',
-    n_center_points=6,
-    seed=42
-)
-
-# Use in loop
-for experiment in doe_results['design_matrix']:
-    D1, D2, D3, D4, D5, D6 = experiment
-    # Use parameters to generate geometry and run analysis
-```
-
----
-
 ## 🎯 Main Scripts
 
 ### Main.py - Standard Parametric Analysis
@@ -249,37 +190,6 @@ Traditional nested loop approach for parametric studies.
 
 ---
 
-### Main_DOE.py - DOE-Based Analysis ⭐ **RECOMMENDED**
-
-Advanced parametric analysis using Design of Experiments.
-
-**Features:**
-- **Box-Behnken design** for optimal parameter space coverage
-- **6 design parameters** (D1-D6) mapped to geometry
-- Automatic experiment generation (63 experiments for 6 parameters)
-- JSON summaries for each experiment
-- Ready for response surface modeling
-
-**Workflow:**
-1. Define parameter ranges
-2. Generate DOE design (Box-Behnken)
-3. Loop through experiments
-4. Create parametric geometries using D1-D6
-5. Run hydrodynamic analysis
-6. Save results with experiment metadata
-
-**Use when:** You want efficient, systematic optimization with fewer experiments
-
-**Number of Experiments:**
-| Parameters | Box-Behnken | Full-Factorial |
-|------------|-------------|----------------|
-| 3          | 15          | 8              |
-| 4          | 27          | 16             |
-| 5          | 46          | 32             |
-| 6          | 63          | 64             |
-| 7          | 90          | 128            |
-
----
 
 ## 📊 Typical Workflow
 
