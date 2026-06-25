@@ -30,6 +30,12 @@ R_wind = 1.1;       % [Ω]   Arbor datasheet
 L_wind = 0.013;     % [H]   Arbor datasheet (13 mH)
 B_fric = 0;         % [N·s/m] mechanical friction — 0=ideal, ~10=realistic prototype
 
+% Conversion efficiency factor from literature (applied to electrical power output).
+% Accounts for power electronics, rectifier, and inverter losses external to the generator.
+% Typical values: 0.85–0.95 depending on converter topology (e.g. Falnes 2002, Mueller 2005).
+% For our case a conservative efficiency factor was considered.
+eta_conv = 0.50;    % [-]   power converter efficiency (EDIT as needed)
+
 B_pto_target = 540; % [kg/s] — validated from Capytaine results
 
 %% Electromagnetic parameter calculation
